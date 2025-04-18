@@ -31,7 +31,7 @@ class Stopwatch(QWidget):
         
     def start(self):
         self.timer_start_time = self.timer_start_time.currentTime()
-        self.timer.start(20)
+        self.timer.start(50)
 
     def stop(self):
         self.timer.stop()
