@@ -90,6 +90,7 @@ class ImageConsumer(QObject):
             short_perclos_ready = False
             blink_ready = False
             PayingAttention = False
+            one_face_detected = False
 
             # Build face analyzer
             fa = FaceAnalyzer(max_nb_faces=1)
@@ -110,14 +111,16 @@ class ImageConsumer(QObject):
                 #Now if we find a face
 
                 if fa.nb_faces==1:
+                    one_face_detected = True
                     # Computes eyes opening level and blinks
-                    left_eye_opening, right_eye_opening, is_blink, last_blink_duration = fa.faces[0].process_eyes(image, detect_blinks=True, blink_th=0.35) #, normalize=True   blink_th=0.35 
+                    left_eye_opening, right_eye_opening, is_blink, last_blink_duration = fa.faces[0].process_eyes(image, detect_blinks=True, blink_th=self.config.blink_detection_threshold) #, normalize=True   blink_th=0.35   # TODO: Determine what values are best here - should we normalize?
 
                     # Compute perclos items
-                    short_perclos = fa.faces[0].compute_perclos(left_eye_opening, right_eye_opening, self.config.perclos_window_size * int(fps), short_perclos_buffer, threshold=(self.config.perclos_high_threshold / 100))*100    #Gives result over time window in percentage, change threshold to .2 as default
+                    # TODO: Below call for short_perclos may need to change fps to the config specified FPS. Currently, the buffer depth passed to compute perclos is dynamic which may lead to unexepcted behavior with the guaranteed fluctuations in calculated frame rate.
+                    short_perclos = fa.faces[0].compute_perclos(left_eye_opening, right_eye_opening, self.config.perclos_window_size * int(fps), short_perclos_buffer, threshold=(self.config.perclos_high_threshold / 100))*100    #Gives result over time window in percentage, change threshold to .2 as default 
                     #print("Short perclos: ", short_perclos)
                     
-                    if len(short_perclos_buffer) >= self.config.perclos_window_size * int(fps):
+                    if len(short_perclos_buffer) >= (self.config.perclos_window_size * int(fps)):
                         short_perclos_ready = True
 
                     fa.faces[0].draw_eyes_landmarks(image)
@@ -132,14 +135,15 @@ class ImageConsumer(QObject):
                     # Only after 15 seconds that we can use this perclos
                     if short_perclos_ready:
                         if short_perclos < self.config.perclos_low_threshold:
-                            cv.putText(image, f"Perclos ({self.config.perclos_window_size} seconds) : {short_perclos:2.2f}%", (10, 30), cv.FONT_HERSHEY_SIMPLEX, .75, (0, 255, 0),2)
-                        elif (short_perclos > self.config.perclos_low_threshold) and (short_perclos < self.config.perclos_high_threshold):
-                            cv.putText(image, f"Perclos ({self.config.perclos_window_size} seconds) : {short_perclos:2.2f}%", (10, 30), cv.FONT_HERSHEY_SIMPLEX, .75, (255, 170, 0),4)
+                            cv.putText(image, f"Perclos ({self.config.perclos_window_size} seconds) : {short_perclos:2.2f}%", (10, 25), cv.FONT_HERSHEY_SIMPLEX, .75, (0, 255, 0),2)
+                        elif (short_perclos >= self.config.perclos_low_threshold) and (short_perclos < self.config.perclos_high_threshold):
+                            cv.putText(image, f"Perclos ({self.config.perclos_window_size} seconds) : {short_perclos:2.2f}%", (10, 25), cv.FONT_HERSHEY_SIMPLEX, .75, (255, 170, 0),4)
                         else:
-                            cv.putText(image, f"Perclos ({self.config.perclos_window_size} seconds) : {short_perclos:2.2f}%", (10, 30), cv.FONT_HERSHEY_SIMPLEX, .75, (255, 0, 0),4)
+                            cv.putText(image, f"Perclos ({self.config.perclos_window_size} seconds) : {short_perclos:2.2f}%", (10, 25), cv.FONT_HERSHEY_SIMPLEX, .75, (255, 0, 0),4)
+
+
 
                     #Blink items
-
                     blink_buffer.append(is_blink)
                     blink_buffer_len = self.config.blink_window_size * int(fps)
                     #print("Expected len:", blink_buffer_len)
@@ -148,27 +152,31 @@ class ImageConsumer(QObject):
                     if len(blink_buffer) >= blink_buffer_len:
                         blink_ready = True
 
-                    while len(blink_buffer) > blink_buffer_len:
+                    while len(blink_buffer) > blink_buffer_len:     # TODO: Is this necessary? If so, then perclos buffer should have similar statement. If not, then remove this.
                         blink_buffer.pop(0)
                     bb = np.array(blink_buffer)
-                    blink_rate = (((bb == 1).astype(int).sum()) / self.config.blink_window_size)*100
                     num_blinks_in_window = ((bb == 1).astype(int).sum())
+                    #blink_rate = (num_blinks_in_window / self.config.blink_window_size)*100    # Represents the number of blinks as a percentage of the total blink window size
+                    blink_rate = num_blinks_in_window / (self.config.blink_window_size / 60)    # Finds blink rate by looking at number of blinks over the last blink_window_size seconds, and converting to blinks per minute
+                    
                     # print("Blink rate: ", blink_rate)
                     # print("Blinks in last", self.config.blink_window_size, "seconds: ", num_blinks_in_window)
 
                     if is_blink:
-                        n_blinks += 1
+                        n_blinks += 1   # Running counter of total blinks. Likely no longer needed
                         
-                    # TO-DO implement blink detection
-                    # if blink_ready:
-                    #     if num_blinks_in_window <= self.config.blink_threshold:
-                    #         cv.putText(image, f"Blinks in last {self.config.blink_window_size} seconds : {num_blinks_in_window}", (10, 30), cv.FONT_HERSHEY_SIMPLEX, .75, (255, 0, 0),4)
-                            
-                    #     else:
-                    #         cv.putText(image, f"Blinks in last {self.config.blink_window_size} seconds : {num_blinks_in_window}", (10, 30), cv.FONT_HERSHEY_SIMPLEX, .75, (0, 255, 0),2)
+                    # TODO: implement blink detection
+                    if blink_ready:
+                        if num_blinks_in_window <= self.config.blink_threshold:
+                            cv.putText(image, f"Blinks in last {self.config.blink_window_size} seconds : {num_blinks_in_window}", (10, 50), cv.FONT_HERSHEY_SIMPLEX, .75, (255, 0, 0),4)
+                        else:
+                            cv.putText(image, f"Blinks in last {self.config.blink_window_size} seconds : {num_blinks_in_window}", (10, 50), cv.FONT_HERSHEY_SIMPLEX, .75, (0, 255, 0),2)
 
                     # # Blink duration
-                    # cv.putText(image, f"Last Blink Duration (s) : {last_blink_duration:2.2f}s", (10, 65), cv.FONT_HERSHEY_SIMPLEX, .75, (0, 0, 0),2)
+                    cv.putText(image, f"Last Blink Duration (s) : {last_blink_duration:2.2f}s", (10, 75), cv.FONT_HERSHEY_SIMPLEX, .75, (0, 0, 0),2)
+                    
+                else:
+                    one_face_detected = False
 
                 # TO-DO: review paying attention metrics for calculation
                 # if blink_ready is True and short_perclos_ready is True:
@@ -193,7 +201,7 @@ class ImageConsumer(QObject):
                 #         print("Unable to write to report: ", sys.exc_info())
                 
                 try:
-                    self.report_facade.write_data(curr_frame_time, left_eye_opening, right_eye_opening, short_perclos)
+                    self.report_facade.write_data(log_time = curr_frame_time, left_eye_opening = left_eye_opening, right_eye_opening = right_eye_opening, perclos = short_perclos, is_blink = is_blink, last_blink_duration = last_blink_duration, blink_rate = blink_rate, one_face_detected = one_face_detected)      # TODO: Current behavior is to write data at every frame, regardless of whether a face is detected. If a face is not detected or multiple faces detected, it will simply write the most recent values, creating "fake" data. Also, if no face detected in initial frames, this will throw exception. We may consider moving this into the above "if" block if a face is detected, and if face is not detected, write a row of data that uses some threshold value. For now, will create simple boolean for tracking whether face is detected in that frame so user can decide whether they want to throw that data out.
                 except:
                     print("Unable to write to report: ", sys.exc_info())
                         

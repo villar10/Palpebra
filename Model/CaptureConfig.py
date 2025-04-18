@@ -5,6 +5,7 @@ class CaptureConfig:
     DEFAULT_PERCLOS_LOW_THRESHOLD = int(10)  #As percentage (i.e., 20 = 20%, 15 = 15%)
     DEFAULT_PERCLOS_WINDOW_SIZE = int(15)        #In seconds
     DEFAULT_BLINK_THRESHOLD = int(2)     #Threshold for number of blinks over BLINK_WINDOW_SIZE. As int
+    DEFAULT_BLINK_DETECTION_THRESHOLD = float(0.35)
     DEFAULT_BLINK_WINDOW_SIZE = int(15)          #In seconds
     DEFAULT_FPS = int(40)
     
@@ -17,6 +18,7 @@ class CaptureConfig:
         self.perclos_low_threshold = self.DEFAULT_PERCLOS_LOW_THRESHOLD
         self.perclos_window_size = self.DEFAULT_PERCLOS_WINDOW_SIZE
         self.blink_threshold = self.DEFAULT_BLINK_THRESHOLD
+        self.blink_detection_threshold = self.DEFAULT_BLINK_DETECTION_THRESHOLD
         self.blink_window_size = self.DEFAULT_BLINK_WINDOW_SIZE
         self.fps = self.DEFAULT_FPS
         self.camera = None
@@ -41,6 +43,9 @@ class CaptureConfig:
         
     def set_blink_threshold(self, blink_threshold):
         self.blink_threshold = int(blink_threshold)
+
+    def set_blink_detection_threshold(self, blink_detection_threshold):
+        self.blink_detection_threshold = float(blink_detection_threshold)
     
     def set_blink_window_size(self, blink_window_size):
         self.blink_window_size = int(blink_window_size)
@@ -63,7 +68,8 @@ class CaptureConfig:
         ans.append(self.perclos_mid_threshold)
         ans.append(self.perclos_low_threshold)
         ans.append(self.perclos_window_size)
-        ans.append(self.blink_threshold)
+        #ans.append(self.blink_threshold)
+        ans.append(self.blink_detection_threshold)
         ans.append(self.blink_window_size)
         ans.append(self.fps)
         

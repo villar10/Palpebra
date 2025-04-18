@@ -9,8 +9,9 @@ import pandas as pd
 import sys
 
 class ReportGenerator:
-    config_headers = ['perclos_high_threshold', 'perclos_mid_threshold', 'perclos_low_threshold', 'perclos_window_size', 'intended_fps']
-    data_headers = ['timestamp', 'left_eye_opening', 'right_eye_opening', 'perclos']
+    config_headers = ['perclos_high_threshold', 'perclos_mid_threshold', 'perclos_low_threshold', 'perclos_window_size', 'blink_detection_threshold', 'blink_window_size', 'intended_fps']
+    data_headers = ['timestamp', 'left_eye_opening', 'right_eye_opening', 'perclos', 'blink_detected', 'last_blink_duration', 'blink_rate', 'OneFaceDetected']
+
     def __init__(self, config: CaptureConfig) -> None:
         self.config = config
         self.config_report = ""
@@ -48,12 +49,12 @@ class ReportGenerator:
             writer = csv.writer(config_file)
             writer.writerow(self.config.as_list())
         
-    def write_data(self, log_time, left_eye_opening, right_eye_opening, perclos):
+    def write_data(self, log_time, left_eye_opening, right_eye_opening, perclos, is_blink, last_blink_duration, blink_rate, one_face_detected):
         timestamp = datetime.fromtimestamp(log_time).strftime('%Y-%m-%d-%H-%M-%S-%f')
         
         with(open(file=self.data_report, mode='a', newline='')) as data_file:
             writer = csv.writer(data_file)
-            writer.writerow([timestamp, left_eye_opening, right_eye_opening, perclos])
+            writer.writerow([timestamp, left_eye_opening, right_eye_opening, perclos, is_blink, last_blink_duration, blink_rate, one_face_detected])      #Choose which data is written to excel report-out here. Note that any new items will need to be declared in the function header as well, unless we implement kwargs. Will also need to add to headers for initial log file creation
         
     def get_data_report_location(self):
         return self.data_report
