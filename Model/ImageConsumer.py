@@ -125,12 +125,19 @@ class ImageConsumer(QObject):
 
                     fa.faces[0].draw_eyes_landmarks(image)
                     # Get eyes positions
-                    left_eye_pos  = fa.faces[0].get_landmark_pos(fa.faces[0].left_eye_center_index)
-                    right_eye_pos = fa.faces[0].get_landmark_pos(fa.faces[0].right_eye_center_index)
-                    
+                    left_iris_pos  = fa.faces[0].get_landmark_pos(fa.faces[0].left_eye_center_index).tolist()
+                    right_iris_pos = fa.faces[0].get_landmark_pos(fa.faces[0].right_eye_center_index).tolist()
+
+                    #TODO: For Chiho, use get_landmarks_pos function from Face class to get all contours around the eye. Alternatively, we could just return the whole faces meshes if desired. Put this behind a setting that is by default ON but can be turned off to improve performance and logging. Also, we can consider improving logging I/O performance by wrapping the write command in a simple "every 20 frames" type loop to reduce I/O demands without sacrificing data loss in the event of a crash.
+                    left_eyelid_loc = fa.faces[0].get_landmarks_pos(fa.faces[0].left_eyelids_indices).tolist()
+                    right_eyelid_loc = fa.faces[0].get_landmarks_pos(fa.faces[0].right_eyelids_indices).tolist()
+
+                    left_eye_loc = fa.faces[0].get_landmarks_pos(fa.faces[0].left_eye_contour_indices).tolist()
+                    right_eye_loc = fa.faces[0].get_landmarks_pos(fa.faces[0].right_eye_contour_indices).tolist()
+
                     # Plot eye opening on each eye
-                    cv.putText(image, f"{left_eye_opening:2.2f}", (int(left_eye_pos[0]+30), int(left_eye_pos[1])), cv.FONT_HERSHEY_SIMPLEX, .75, (255, 255, 255) if left_eye_opening>0.5 else (255,0,0),2)
-                    cv.putText(image, f"{right_eye_opening:2.2f}", (int(right_eye_pos[0]-150), int(right_eye_pos[1])), cv.FONT_HERSHEY_SIMPLEX, .75, (255, 255, 255) if right_eye_opening>0.5 else (255,0,0),2)
+                    cv.putText(image, f"{left_eye_opening:2.2f}", (int(left_iris_pos[0]+30), int(left_iris_pos[1])), cv.FONT_HERSHEY_SIMPLEX, .75, (255, 255, 255) if left_eye_opening>0.5 else (255,0,0),2)
+                    cv.putText(image, f"{right_eye_opening:2.2f}", (int(right_iris_pos[0]-150), int(right_iris_pos[1])), cv.FONT_HERSHEY_SIMPLEX, .75, (255, 255, 255) if right_eye_opening>0.5 else (255,0,0),2)
 
                     # Only after 15 seconds that we can use this perclos
                     if short_perclos_ready:
@@ -165,7 +172,6 @@ class ImageConsumer(QObject):
                     if is_blink:
                         n_blinks += 1   # Running counter of total blinks. Likely no longer needed
                         
-                    # TODO: implement blink detection
                     if blink_ready:
                         if num_blinks_in_window <= self.config.blink_threshold:
                             cv.putText(image, f"Blinks in last {self.config.blink_window_size} seconds : {num_blinks_in_window}", (10, 50), cv.FONT_HERSHEY_SIMPLEX, .75, (255, 0, 0),4)
@@ -177,6 +183,7 @@ class ImageConsumer(QObject):
                     
                 else:
                     one_face_detected = False
+                    #TODO: Here, we should reset the variables that are logged to prevent duplicate logging of the same data point. These should probably instead be replaced with None or NaN, something to distinguish it from the rest of the data.
 
                 # TO-DO: review paying attention metrics for calculation
                 # if blink_ready is True and short_perclos_ready is True:
@@ -201,7 +208,10 @@ class ImageConsumer(QObject):
                 #         print("Unable to write to report: ", sys.exc_info())
                 
                 try:
-                    self.report_facade.write_data(log_time = curr_frame_time, left_eye_opening = left_eye_opening, right_eye_opening = right_eye_opening, perclos = short_perclos, is_blink = is_blink, last_blink_duration = last_blink_duration, blink_rate = blink_rate, one_face_detected = one_face_detected)      # TODO: Current behavior is to write data at every frame, regardless of whether a face is detected. If a face is not detected or multiple faces detected, it will simply write the most recent values, creating "fake" data. Also, if no face detected in initial frames, this will throw exception. We may consider moving this into the above "if" block if a face is detected, and if face is not detected, write a row of data that uses some threshold value. For now, will create simple boolean for tracking whether face is detected in that frame so user can decide whether they want to throw that data out.
+                    if one_face_detected:
+                        self.report_facade.write_data(log_time = curr_frame_time, left_eye_opening = left_eye_opening, right_eye_opening = right_eye_opening, perclos = short_perclos, is_blink = is_blink, last_blink_duration = last_blink_duration, blink_rate = blink_rate, one_face_detected = one_face_detected, left_iris_loc = left_iris_pos, left_eyelid_loc = left_eyelid_loc, left_eye_loc = left_eye_loc, right_iris_loc = right_iris_pos, right_eyelid_loc = right_eyelid_loc, right_eye_loc = right_eye_loc)
+                    else:
+                        self.report_facade.write_data(log_time = curr_frame_time, left_eye_opening = "NaN", right_eye_opening = "NaN", perclos = "NaN", is_blink = "NaN", last_blink_duration = "NaN", blink_rate = "NaN", one_face_detected = one_face_detected,  left_iris_loc = "NaN", left_eyelid_loc = "NaN", left_eye_loc = "NaN", right_iris_loc = "NaN", right_eyelid_loc = "NaN", right_eye_loc = "NaN")
                 except:
                     print("Unable to write to report: ", sys.exc_info())
                         
