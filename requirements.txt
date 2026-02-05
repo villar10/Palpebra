@@ -1,4 +1,4 @@
-﻿absl-py==2.1.0
+absl-py==2.1.0
 altgraph==0.17.4
 attrs==24.2.0
 cffi==1.17.1
@@ -29,7 +29,7 @@ pandas==2.2.3
 pathvalidate==3.2.3
 pefile==2023.2.7
 pillow==10.4.0
-protobuf==4.25.8
+protobuf==5.29.6
 pycparser==2.22
 pygame==2.6.1
 pygrabber==0.2
