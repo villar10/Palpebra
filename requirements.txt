@@ -28,8 +28,8 @@ packaging==24.1
 pandas==2.2.3
 pathvalidate==3.2.3
 pefile==2023.2.7
-pillow==10.4.0
-protobuf==5.29.6
+pillow==12.1.1
+protobuf==6.33.5
 pycparser==2.22
 pygame==2.6.1
 pygrabber==0.2
